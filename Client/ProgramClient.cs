@@ -8,44 +8,59 @@ namespace Client
 {
     internal class ProgramClient
     {
+        private static UdpClient udpClient;
+
         static void Main(string[] args)
         {
-             SentMessage(args[0], args[1]);
+            StartClient("Sergey", "127.0.0.1");
         }
 
-        public static void SentMessage(string From, string ip)
+        public static void StartClient(string From, string ip)
         {
-          
-            UdpClient udpClient = new UdpClient();
-            IPEndPoint iPEndPoint = new IPEndPoint(IPAddress.Parse(ip), 12345);
-            
-            while(true)
+
+            udpClient = new UdpClient(321);
+            Task.Run(() => { ExpectMessage(); });
+            while (true)
             {
-                string messageText;
-                do
-                {
-                    Console.Clear();
-                    Console.WriteLine("Input your message:");
-                    messageText = Console.ReadLine();
-                }
-                while (string.IsNullOrEmpty(messageText));
-
-                Message message = new Message() { Text = messageText, NicknameFrom = From, NicknameTo = "Server", DateTime = DateTime.Now };
-                string json = message.SerializeToJson();
-                byte[] data = Encoding.UTF8.GetBytes(json);
-                udpClient.Send(data, data.Length, iPEndPoint);
-
-                byte[] ansver = udpClient.Receive(ref iPEndPoint);
-                
-                if (ansver == null)
-                {
-                    break;
-                }
-                var ansverText = Encoding.UTF8.GetString(ansver);
-                message = Message.DeserializeFromJson(ansverText);
-                message.Print();
-                Console.ReadLine();
+                SendMessage();
             }
+        }
+        public static void ExpectMessage()
+        {
+            byte[] buffer;
+            IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Any, 0);
+            
+
+            while (true)
+            {
+                buffer = udpClient.Receive(ref remoteEndpoint);
+                var messageText = Encoding.UTF8.GetString(buffer);
+                Message? message = Message.DeserializeFromJson(messageText);
+                if (message.Text == @"\Exit")
+                {
+                    CompletionWork();
+                }
+                message.Print();
+            }
+
+        }
+
+        public static void SendMessage()
+        {
+            string mess = Console.ReadLine(); 
+            IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345);
+            Message message = new Message() { Text = mess, NicknameFrom = "Server", DateTime = DateTime.Now };
+            string json = message.SerializeToJson();
+            byte[] data = Encoding.UTF8.GetBytes(json);
+            udpClient.Send(data, data.Length, remoteEndpoint);
+            Console.WriteLine("Сообщение отправлено серверу");
+        }
+
+        public static void CompletionWork()
+        {
+            Console.WriteLine("Завершение работы клиента");
+            udpClient.Close(); // Закрываем UDP сокет клиента
+            Environment.Exit(0);
         }
     }
 }
