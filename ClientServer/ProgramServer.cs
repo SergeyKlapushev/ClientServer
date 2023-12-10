@@ -2,66 +2,91 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Server
 {
     internal class ProgramServer
     {
         static UdpClient udpClient;
-        static void Main(string[] args)
-        {
-            ServerStart();
-        }
+        static CancellationTokenSource cts = new CancellationTokenSource();
+        static CancellationToken token = cts.Token;
 
-        public static void ServerStart()
+        static async Task Main(string[] args)
         {
-            byte[] buffer;
-
             udpClient = new UdpClient(12345);
-            Task.Run(() => { ExpectMessage(); });
-            while (true)
+
+            Task serverStart = new Task(ExpectMessage, token);
+            Task sendMessage = new Task(SendMessage, token);
+            
+
+
+            serverStart.Start();
+            sendMessage.Start();
+            try
             {
-                SendMessage();
+                Task.WaitAll(serverStart, sendMessage);
             }
+            catch (AggregateException ex)
+            {
+                foreach (var innerException in ex.InnerExceptions)
+                {
+                    if (innerException is OperationCanceledException)
+                    {
+                        Console.WriteLine("Задача была отменена.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Произошло исключение: " + innerException.Message);
+                    }
+                }
+            }
+
+
+            cts.Cancel();
+
+           
+
         }
 
         public static void ExpectMessage()
         {
             byte[] buffer;
             IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Any, 0);
+            
 
-            while (true)
+            while (!token.IsCancellationRequested)
             {
                 buffer = udpClient.Receive(ref remoteEndpoint);
                 var messageText = Encoding.UTF8.GetString(buffer);
                 Message? message = Message.DeserializeFromJson(messageText);
-                if(message.Text == @"\Exit")
+                if (message.Text == @"\Exit")
                 {
-                    CompletionWork();
+                    cts.Cancel();
+                    token.ThrowIfCancellationRequested();
                 }
                 message.Print();
             }
-            
         }
-
 
         public static void SendMessage()
         {
-            string mess = Console.ReadLine();
-            IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 321);
-            Message message = new Message() { Text = mess, NicknameFrom = "Server", DateTime = DateTime.Now };
-            string json = message.SerializeToJson();
-            byte[] data = Encoding.UTF8.GetBytes(json);
-            udpClient.Send(data, data.Length, remoteEndpoint);
-            Console.WriteLine("Сообщение отправлено клиенту");
+            while (!token.IsCancellationRequested)
+            {
+                token.ThrowIfCancellationRequested(); 
+                string mess = Console.ReadLine();
+                if (token.IsCancellationRequested == true)
+                {
+                    break;
+                }
+                IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 321);
+                Message message = new Message() { Text = mess, NicknameFrom = "Server", DateTime = DateTime.Now };
+                string json = message.SerializeToJson();
+                byte[] data = Encoding.UTF8.GetBytes(json);
+                udpClient.Send(data, data.Length, remoteEndpoint);
+                Console.WriteLine("Сообщение отправлено клиенту");
+            }
         }
-
-        public static void CompletionWork()
-        {
-            Console.WriteLine("Завершение работы сервера");
-            udpClient.Close();
-            Environment.Exit(0);
-        }
-
     }
 }

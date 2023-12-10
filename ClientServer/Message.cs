@@ -25,7 +25,13 @@ namespace ClientServer
         }
         public void Print()
         {
-            Console.WriteLine($"Cообщение от: {this.NicknameFrom}\n {this.Text}");
+            Console.WriteLine($"Cообщение от: {this.NicknameFrom}");
+            for (int i = 0; i < Text.Length; i++)
+            {
+                Console.Write($"{Text[i]}");
+                Thread.Sleep(100);
+            }
+            Console.Write("\n");
         }
     }
 }

@@ -8,7 +8,7 @@ namespace Client
 {
     internal class ProgramClient
     {
-        private static UdpClient udpClient;
+        private static UdpClient _udpClient;
 
         static void Main(string[] args)
         {
@@ -17,9 +17,10 @@ namespace Client
 
         public static void StartClient(string From, string ip)
         {
+            _udpClient = new UdpClient(321);
 
-            udpClient = new UdpClient(321);
             Task.Run(() => { ExpectMessage(); });
+
             while (true)
             {
                 SendMessage();
@@ -33,7 +34,7 @@ namespace Client
 
             while (true)
             {
-                buffer = udpClient.Receive(ref remoteEndpoint);
+                buffer = _udpClient.Receive(ref remoteEndpoint);
                 var messageText = Encoding.UTF8.GetString(buffer);
                 Message? message = Message.DeserializeFromJson(messageText);
                 if (message.Text == @"\Exit")
@@ -49,17 +50,17 @@ namespace Client
         {
             string mess = Console.ReadLine(); 
             IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345);
-            Message message = new Message() { Text = mess, NicknameFrom = "Server", DateTime = DateTime.Now };
+            Message message = new Message() { Text = mess, NicknameFrom = "Sergey", DateTime = DateTime.Now };
             string json = message.SerializeToJson();
             byte[] data = Encoding.UTF8.GetBytes(json);
-            udpClient.Send(data, data.Length, remoteEndpoint);
+            _udpClient.Send(data, data.Length, remoteEndpoint);
             Console.WriteLine("Сообщение отправлено серверу");
         }
 
         public static void CompletionWork()
         {
             Console.WriteLine("Завершение работы клиента");
-            udpClient.Close(); // Закрываем UDP сокет клиента
+            _udpClient.Close(); // Закрываем UDP сокет клиента
             Environment.Exit(0);
         }
     }
