@@ -12,43 +12,18 @@ namespace Client
 
         static void Main(string[] args)
         {
-            StartClient("Sergey", "127.0.0.1");
-        }
-
-        public static void StartClient(string From, string ip)
-        {
-            _udpClient = new UdpClient(321);
-
-            Task.Run(() => { ExpectMessage(); });
+            Mailbox mailbox = new Mailbox();
+            Task.Run(() => { mailbox.ExpectMessage(); }) ;
 
             while (true)
             {
-                SendMessage();
+                mailbox.InpitCommand(Console.ReadLine());
             }
-        }
-        public static void ExpectMessage()
-        {
-            byte[] buffer;
-            IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Any, 0);
-            
-
-            while (true)
-            {
-                buffer = _udpClient.Receive(ref remoteEndpoint);
-                var messageText = Encoding.UTF8.GetString(buffer);
-                Message? message = Message.DeserializeFromJson(messageText);
-                if (message.Text == @"\Exit")
-                {
-                    CompletionWork();
-                }
-                message.Print();
-            }
-
         }
 
         public static void SendMessage()
         {
-            string mess = Console.ReadLine(); 
+            string mess = Console.ReadLine();
             IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345);
             Message message = new Message() { Text = mess, NicknameFrom = "Sergey", DateTime = DateTime.Now };
             string json = message.SerializeToJson();

@@ -9,17 +9,18 @@ namespace Server
 {
     internal class ProgramServer
     {
-        static UdpClient udpClient;
+        static UdpClient udpClient = new UdpClient(12345);
         static CancellationTokenSource cts = new CancellationTokenSource();
         static CancellationToken token = cts.Token;
 
+
         static async Task Main(string[] args)
         {
-            udpClient = new UdpClient(12345);
+
 
             Task serverStart = new Task(ExpectMessage, token);
             Task sendMessage = new Task(SendMessage, token);
-            
+
 
 
             serverStart.Start();
@@ -43,18 +44,16 @@ namespace Server
                 }
             }
 
-
             cts.Cancel();
-
-           
-
         }
 
         public static void ExpectMessage()
         {
+            bool networkUp = System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable();
+            Console.WriteLine(networkUp);
             byte[] buffer;
             IPEndPoint remoteEndpoint = new IPEndPoint(IPAddress.Any, 0);
-            
+
 
             while (!token.IsCancellationRequested)
             {
@@ -74,8 +73,9 @@ namespace Server
         {
             while (!token.IsCancellationRequested)
             {
-                token.ThrowIfCancellationRequested(); 
+                token.ThrowIfCancellationRequested();
                 string mess = Console.ReadLine();
+
                 if (token.IsCancellationRequested == true)
                 {
                     break;
